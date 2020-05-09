@@ -1,11 +1,17 @@
 import tensorflow as tf 
 
 
-def build_model(vocab_size, gru=False, rnn_units=256):
+def build_model(vocab_size, gru=False, rnn_units=256, additive_attention=True):
     #LAYERS DEFINITION
     #encoder & decoder inputs
     encoder_input = tf.keras.Input(shape=(None,))
     decoder_input = tf.keras.Input(shape=(None,))
+
+    #attention
+    if additive_attention:
+        attention = tf.keras.layers.AdditiveAttention()
+    else:
+        attention = tf.keras.layers.Attention()
 
     #encoder & decoder embedding layer (same for both)
     e_embedding = tf.keras.layers.Embedding(vocab_size, rnn_units, mask_zero=True)
@@ -47,6 +53,7 @@ def build_model(vocab_size, gru=False, rnn_units=256):
     context_combined = tf.keras.layers.concatenate([attention, decoder_outs])
 
     decoder_output = d_dense_1(context_combined)
+    decoder_output = tf.keras.layers.Dropout(0.25)(decoder_output)
     decoder_output = d_dense_2(decoder_output)
 
     #encoder-decoder model
@@ -72,7 +79,6 @@ def build_model(vocab_size, gru=False, rnn_units=256):
         context_combined_inf = tf.keras.layers.Concatenate()([attention_inf, decoder_inf_outs])
         #decoder_inf dense
         decoder_inf_output = tf.keras.layers.TimeDistributed(d_dense_1)(context_combined_inf)
-        decoder_inf_output = tf.keras.layers.Dropout(0.25)(decoder_inf_output)
         decoder_inf_output = tf.keras.layers.TimeDistributed(d_dense_2)(decoder_inf_output)
 
         decoder_inf_model = tf.keras.Model([decoder_input] + decoder_inf_initial_states, [decoder_inf_output] + decoder_inf_states)
