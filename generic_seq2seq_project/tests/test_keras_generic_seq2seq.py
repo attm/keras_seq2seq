@@ -1,4 +1,4 @@
-from keras_generic_seq2seq.enc_dec_atten import *
+from keras_generic_seq2seq import *
 
 
 def test_build_model():

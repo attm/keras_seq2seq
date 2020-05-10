@@ -1,1 +1,1 @@
-from .enc_dec_atten import build_model, predict_seq
+from .keras_generic_seq2seq import build_model, predict_seq

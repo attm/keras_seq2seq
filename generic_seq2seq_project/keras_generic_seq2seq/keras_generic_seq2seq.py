@@ -126,6 +126,3 @@ def predict_seq(encoder, decoder, input_seq, start_token, end_token):
         target_seq[0, [0]] = word_token
 
     return output
-
-
-    m, e, d = build_model(200)
