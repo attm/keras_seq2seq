@@ -1,4 +1,5 @@
 import tensorflow as tf 
+import numpy as np
 
 
 def build_model(vocab_size, gru=False, rnn_units=256, additive_attention=True):
@@ -9,9 +10,9 @@ def build_model(vocab_size, gru=False, rnn_units=256, additive_attention=True):
 
     #attention
     if additive_attention:
-        attention = tf.keras.layers.AdditiveAttention()
+        attention_layer = tf.keras.layers.AdditiveAttention
     else:
-        attention = tf.keras.layers.Attention()
+        attention_layer = tf.keras.layers.Attention
 
     #encoder & decoder embedding layer (same for both)
     e_embedding = tf.keras.layers.Embedding(vocab_size, rnn_units, mask_zero=True)
@@ -49,7 +50,7 @@ def build_model(vocab_size, gru=False, rnn_units=256, additive_attention=True):
         decoder_outs, _, _ = d_rnn(decoder, initial_state=[encoder_h, encoder_c])
 
     #attenrion 
-    attention = tf.keras.layers.AdditiveAttention()([decoder_outs, encoder_outs])
+    attention = attention_layer()([decoder_outs, encoder_outs])
     context_combined = tf.keras.layers.concatenate([attention, decoder_outs])
 
     decoder_output = d_dense_1(context_combined)
@@ -75,7 +76,7 @@ def build_model(vocab_size, gru=False, rnn_units=256, additive_attention=True):
         decoder_inf_outs, decoder_inf_h = d_rnn(decoder_emb, initial_state=decoder_inf_initial_states)
         decoder_inf_states = [decoder_inf_h]
         #decoder attention 
-        attention_inf = tf.keras.layers.AdditiveAttention(causal=True)([decoder_inf_outs, decoder_inf_input_h])
+        attention_inf = attention_layer(causal=True)([decoder_inf_outs, decoder_inf_input_h])
         context_combined_inf = tf.keras.layers.Concatenate()([attention_inf, decoder_inf_outs])
         #decoder_inf dense
         decoder_inf_output = tf.keras.layers.TimeDistributed(d_dense_1)(context_combined_inf)
@@ -94,7 +95,7 @@ def build_model(vocab_size, gru=False, rnn_units=256, additive_attention=True):
         decoder_inf_outs, decoder_inf_h, decoder_inf_c = d_rnn(decoder_emb, initial_state=decoder_inf_initial_states)
         decoder_inf_states = [decoder_inf_h, decoder_inf_c]
         #decoder attention 
-        attention_inf = tf.keras.layers.AdditiveAttention(causal=True)([decoder_inf_outs, decoder_inf_input_h])
+        attention_inf = attention_layer(causal=True)([decoder_inf_outs, decoder_inf_input_h])
         context_combined_inf = tf.keras.layers.Concatenate()([attention_inf, decoder_inf_outs])
         #decoder_inf dense
         decoder_inf_output = tf.keras.layers.TimeDistributed(d_dense_1)(context_combined_inf)
@@ -103,4 +104,28 @@ def build_model(vocab_size, gru=False, rnn_units=256, additive_attention=True):
 
         decoder_inf_model = tf.keras.Model([decoder_input] + decoder_inf_initial_states, [decoder_inf_output] + decoder_inf_states)
 
+    model.compile(optimizer="adam", loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     return model, encoder_inf_model, decoder_inf_model
+
+def predict_seq(encoder, decoder, input_seq, start_token, end_token):
+    seq_lenght = len(input_seq)
+    input_seq = input_seq.reshape(1, 32)
+    state = encoder.predict(input_seq)
+    target_seq = np.zeros(shape=(1, 32))
+    target_seq[0, [0]] = start_token
+    output = []
+
+    for i in range(seq_lenght):
+        yh, h, c = decoder.predict([target_seq] + state)
+        word_token = np.argmax(yh[0, 0, :])
+        if word_token == end_token:
+            break
+        output.append(word_token)
+        state = [h, c]
+        target_seq = np.zeros(shape=(1, 32))
+        target_seq[0, [0]] = word_token
+
+    return output
+
+
+    m, e, d = build_model(200)
